@@ -1,0 +1,26 @@
+# Este mundo tiene NUEVE errores de validación. Tu motor debe reportarlos todos.
+MUNDO: Un mundo roto
+INICIO: vestibulo
+META: llevar gema a torre
+---
+OBJETO: antorcha
+DESC: Una antorcha.
+---
+OBJETO: antorcha
+DESC: Otra antorcha con el mismo identificador.
+---
+SALA: vestibulo
+DESC: Un vestíbulo.
+SALIDA: norte -> pasillo
+SALIDA: norte -> sotano
+SALIDA: este -> jardin requiere llave
+OBJETO: antorcha
+---
+SALA: pasillo
+DESC: Un pasillo.
+SALIDA: sur -> vestibulo
+OBJETO: escudo
+---
+SALA: armeria
+DESC: Nadie puede llegar aquí.
+SALIDA: sur -> pasillo

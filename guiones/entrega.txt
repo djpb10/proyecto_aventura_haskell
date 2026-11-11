@@ -1,0 +1,18 @@
+mirar
+oeste
+tomar carnet
+inventario
+norte
+oeste
+tomar memoria_usb
+este
+norte
+arriba
+este
+tomar llave_del_ascensor
+oeste
+oeste
+tomar proyecto_impreso
+este
+arriba
+norte

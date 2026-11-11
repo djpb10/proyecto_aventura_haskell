@@ -1,0 +1,29 @@
+cabal-version:      2.4
+name:               aventura
+version:            0.1.0.0
+synopsis:           Motor de aventuras de texto en Haskell (CI-3661)
+author:             David Pereira 18-10245 / Rossana Ilardo 20-10043
+
+library
+    exposed-modules:
+        Motor.Tipos
+        Motor.Reconocedor
+        Motor.Mundo
+        Motor.Comandos
+        Motor.Nucleo
+        Motor.Persistencia
+    hs-source-dirs:   src
+    build-depends:
+        base >= 4.14 && < 5,
+        containers,
+        directory,
+        filepath
+    default-language: Haskell2010
+
+executable aventura
+    main-is:          Main.hs
+    hs-source-dirs:   app
+    build-depends:
+        base >= 4.14 && < 5,
+        aventura
+    default-language: Haskell2010

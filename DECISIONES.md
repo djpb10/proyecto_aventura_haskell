@@ -23,3 +23,27 @@
 * **Consecuencias:**
   * *Ganamos:* Separación clara entre la definición estática del mapa y el progreso del jugador. Evitamos reconstruir o mutar registros profundos dentro de `salas` al ejecutar `Tomar` o `Soltar`; basta con actualizar la lista asociada a `ubicacion` en `objetosEnSalas`.
   * *Perdimos:* Existe una ligera redundancia inicial al poblar `objetosEnSalas` a partir de `objetosInicial` en `estadoInicial`, y al guardar la partida (si se serializa todo el `Estado`) el archivo incluye la definición del `Mundo`.
+
+  ---
+
+  ## D3. Diseño del reconocedor sintáctico con combinadores propios
+
+* **Contexto:** El proyecto prohíbe el uso de librerías externas de parsing (*Parsec*, *Megaparsec*, expresiones regulares, etc.) y exige construir reconocedores propios sobre `ReadS` para analizar las líneas del archivo de mundo (`SALIDA`, `META`, claves y valores). Además, el tipo `ReadS a` (`String -> [(a, String)]`) permite devolver múltiples derivaciones en caso de ambigüedad.
+* **Opciones:**
+  1. Construir todos los reconocedores (incluidos identificadores y espacios) mediante recursión con combinadores como `muchos`, generando todas las particiones de prefijos posibles y filtrando luego.
+  2. Implementar los combinadores básicos sobre `ReadS` (`<|>`, `muchos`, `muchos1`, `cadena`, `satisfacer`), pero definir `identificador` y `espacios` usando `span` / `dropWhile` para consumir directamente la coincidencia máxima (*maximal munch*), exigiendo en `ejecutarReconocedor` que el resto de la cadena solo contenga espacios.
+* **Decisión:** Se eligió la opción 2 en `Motor.Reconocedor`.
+* **Consecuencias:**
+  * *Ganamos:* Eliminamos la ambigüedad y el *backtracking* innecesario al leer identificadores y espacios, garantizando que líneas mal formadas o con basura al final sean rechazadas con precisión para reportar errores V1.
+  * *Perdimos:* Los combinadores léxicos básicos (`identificador`, `espacios`) no generan múltiples derivaciones parciales como lo haría un parser, aunque esto no afecta la gramática del formato del mundo.
+
+## D4. Modelado de la variante Oscuridad en los tipos y el reconocedor
+
+* **Contexto:** La variante asignada (Oscuridad) introduce las claves opcionales `OSCURA: si` en las salas y `LUZ: si` en los objetos. El formato del archivo no especifica explícitamente qué ocurre si se escribe un valor distinto de `si` (como `OSCURA: no` o `OSCURA: tal_vez`).
+* **Opciones:**
+  1. Aceptar tanto `si` como `no` en el reconocedor y almacenar valores `Bool` (`True` para `si`, `False` para `no` o ausencia).
+  2. Restringir el reconocedor `booleanoSi` en `Motor.Reconocedor` para que acepte únicamente la cadena exacta `"si"` (tratando ausencia de la clave como `False` por defecto en `Sala` y `Objeto`), rechazando cualquier otro valor como error de sintaxis V1.
+* **Decisión:** Se eligió la opción 2.
+* **Consecuencias:**
+  * *Ganamos:* Cumplimiento estricto con la especificación de la Sección 7 (que solo define `OSCURA: si` y `LUZ: si`), detectando errores tipográficos en los archivos de mundo durante la validación sintáctica.
+  * *Perdimos:* Un archivo de mundo que escriba explícitamente `OSCURA: no` será rechazado como inválido en lugar de interpretarse como sala iluminada.

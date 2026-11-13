@@ -176,3 +176,134 @@ leerBloque = conCampos porTipo
         ((m, k, _) : _) ->
           Left [ErrorSintaxis m ("el bloque debe empezar con SALA u OBJETO, no con " ++ k)]
         [] -> Left []    
+
+dirTexto :: Direccion -> String
+dirTexto Norte  = "norte"
+dirTexto Sur    = "sur"
+dirTexto Este   = "este"
+dirTexto Oeste  = "oeste"
+dirTexto Arriba = "arriba"
+dirTexto Abajo  = "abajo"
+
+quitar :: Eq a => a -> [a] -> [a]
+quitar x = filter (/= x)
+
+-- valores que aparecen más de una vez
+repetidos :: Eq a => [a] -> [a]
+repetidos [] = []
+repetidos (x : xs)
+  | elem x xs = x : repetidos (quitar x xs)
+  | otherwise = repetidos xs
+
+-- lista sin repetidos
+unicos :: Eq a => [a] -> [a]
+unicos []       = []
+unicos (x : xs) = x : unicos (quitar x xs)
+
+soloObjetos :: [Bloque] -> [Objeto]
+soloObjetos []                 = []
+soloObjetos (BObjeto o : resto) = o : soloObjetos resto
+soloObjetos (_ : resto)        = soloObjetos resto
+
+soloSalas :: [Bloque] -> [SalaCruda]
+soloSalas []                 = []
+soloSalas (BSala s : resto)  = s : soloSalas resto
+soloSalas (_ : resto)        = soloSalas resto
+
+-- salas a las que se llega desde las iniciales siguiendo salidas
+alcanzables :: [SalaCruda] -> [IdSala] -> [IdSala]
+alcanzables ss = expandir []
+  where
+    expandir visitados [] = visitados
+    expandir visitados (x : pendientes)
+      | elem x visitados = expandir visitados pendientes
+      | otherwise        = expandir (x : visitados) (vecinos x ++ pendientes)
+    vecinos x = [ destino sl | s <- ss, crId s == x, (_, sl) <- crSalidas s ]
+
+-- revisa v2 a v10 si todo está bien, arma el mundo con sus map
+validar :: Cabecera -> [Bloque] -> Either [ErrorMundo] Mundo
+validar (Cabecera t ini m) bs
+  | null errores = Right mundoFinal
+  | otherwise    = Left errores
+  where
+    os        = soloObjetos bs
+    ss        = soloSalas bs
+    oids      = map idObjeto os
+    sids      = map crId ss
+    colocados = foldr (\s acc -> crObjetos s ++ acc) [] ss
+    todasSalidas = [ (crId s, d, sl) | s <- ss, (d, sl) <- crSalidas s ]
+
+    errores = v2 ++ v3 ++ v4 ++ v5 ++ v6 ++ v7 ++ v8 ++ v9 ++ v10
+
+    v2 = [ ErrorValidacion ("el objeto " ++ unIdObjeto i ++ " está definido más de una vez")
+         | i <- repetidos oids ]
+      ++ [ ErrorValidacion ("la sala " ++ unIdSala i ++ " está definida más de una vez")
+         | i <- repetidos sids ]
+
+    v3 = [ ErrorValidacion ("la sala " ++ unIdSala o ++ " tiene una salida al " ++ dirTexto d
+                            ++ " hacia " ++ unIdSala (destino sl) ++ ", que no existe")
+         | (o, d, sl) <- todasSalidas, not (elem (destino sl) sids) ]
+
+    v4 = [ ErrorValidacion ("la salida al " ++ dirTexto d ++ " de la sala " ++ unIdSala o
+                            ++ " requiere el objeto " ++ unIdObjeto ob ++ ", que no existe")
+         | (o, d, sl) <- todasSalidas, Just ob <- [requisito sl], not (elem ob oids) ]
+
+    v5 = [ ErrorValidacion ("la sala " ++ unIdSala (crId s) ++ " tiene dos salidas al " ++ dirTexto d)
+         | s <- ss, d <- repetidos (map fst (crSalidas s)) ]
+
+    v6 = [ ErrorValidacion ("la sala " ++ unIdSala (crId s) ++ " contiene el objeto "
+                            ++ unIdObjeto ob ++ ", que no está definido")
+         | s <- ss, ob <- crObjetos s, not (elem ob oids) ]
+
+    v7 = [ ErrorValidacion ("el objeto " ++ unIdObjeto ob ++ " está colocado más de una vez")
+         | ob <- repetidos colocados ]
+
+    v8 = [ ErrorValidacion ("INICIO nombra una sala que no existe: " ++ unIdSala ini)
+         | not (elem ini sids) ]
+      ++ v8meta
+    v8meta =
+      case m of
+        LlegarA s    -> salaMeta s
+        LlevarA ob s ->
+          [ ErrorValidacion ("META nombra un objeto que no existe: " ++ unIdObjeto ob)
+          | not (elem ob oids) ] ++ salaMeta s
+    salaMeta s = [ ErrorValidacion ("META nombra una sala que no existe: " ++ unIdSala s)
+                 | not (elem s sids) ]
+
+    alcanzadas = alcanzables ss [ini]
+    v9 = if elem ini sids
+           then [ ErrorValidacion ("la sala " ++ unIdSala s ++ " no es alcanzable desde INICIO")
+                | s <- unicos sids, not (elem s alcanzadas) ]
+           else []
+
+    -- solo objetos que s existen
+    necesarios = (case m of
+                    LlevarA ob _ -> [ob]
+                    LlegarA _    -> [])
+              ++ [ ob | (_, _, sl) <- todasSalidas, Just ob <- [requisito sl] ]
+    v10 = [ ErrorValidacion ("el objeto " ++ unIdObjeto ob
+                             ++ " es necesario pero no está en ninguna sala")
+          | ob <- unicos necesarios, elem ob oids, not (elem ob colocados) ]
+
+    mundoFinal = Mundo
+      { titulo  = t
+      , inicio  = ini
+      , meta    = m
+      , salas   = Map.fromList
+          [ (crId s, Sala (crId s) (crDesc s) (Map.fromList (crSalidas s))
+                          (crObjetos s) (crOscura s))
+          | s <- ss ]
+      , objetos = Map.fromList [ (idObjeto o, o) | o <- os ]
+      }
+
+-- recibe el texto del archivo, si hay errores de sintaxis no se intenta validar lo demás
+leerMundo :: String -> Either [ErrorMundo] Mundo
+leerMundo texto =
+  case bloques (lineasUtiles texto) of
+    [] -> Left [ErrorSintaxis 1 "el archivo no tiene contenido"]
+    (cab : resto) ->
+      case Right (\c bs -> (c, bs))
+             <+> conCampos leerCabecera cab
+             <+> todas (map leerBloque resto) of
+        Left es       -> Left es
+        Right (c, bs) -> validar c bs        

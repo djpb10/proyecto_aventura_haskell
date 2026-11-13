@@ -110,3 +110,29 @@
 * **Consecuencias:**
   * *Ganamos:* Mensajes sin repetidos, un error por problema real
   * *Perdimos:* Si se corrige v8 y el objeto sigue sin colocarse en una sala, v10 aparece recién en la corrida siguiente
+
+---
+
+## D10. Normalización y tolerancia en la entrada de comandos del jugador
+
+* **Contexto:** Durante una sesión de juego interactiva, los usuarios pueden ingresar comandos utilizando mayúsculas, espacios adicionales alrededor del texto, sinónimos naturales o abreviaturas comunes (por ejemplo, `IR norte`, `coger llave`, `inv`, `ir n`). Un parser excesivamente estricto deteriora la experiencia de uso.
+* **Opciones:**
+  1. Exigir únicamente las palabras reservadas exactas en minúsculas y sin variaciones sintácticas.
+  2. Preprocesar la línea eliminando espacios externos (`trim`) y normalizando a minúsculas (`map toLower`), e incorporar mediante el combinador de elección (`<|>`) sinónimos explícitos (`coger`, `inv`, `x`), abreviaturas direccionales (`n`, `s`, `e`, `o`, `u`, `d`) y el descarte opcional de artículos definidos (`el`, `la`, `los`, `las`) antes de los identificadores de objetos.
+* **Decisión:** Se eligió la opción 2 en `Motor.Comandos`.
+* **Consecuencias:**
+  * *Ganamos:* Interacción mucho más natural y fluida para el jugador (admitiendo frases como `"tomar la llave"` o `"ir n"`), manteniendo intacta la representación interna del tipo algebraico `Comando`.
+  * *Perdimos:* Mayor cantidad de reglas en el reconocedor sintáctico y la necesidad de asegurarse de que las abreviaturas no colisionen con identificadores o verbos completos.
+
+---
+
+## D11. Reconocimiento puro de comandos sobre combinadores `ReadS`
+
+* **Contexto:** La arquitectura del motor exige mantener una separación estricta entre la lógica pura del juego y las operaciones de entrada/salida (`IO`), prohibiendo el uso de librerías externas de análisis sintáctico.
+* **Opciones:**
+  1. Dividir la entrada del usuario usando `words` y hacer coincidencia de patrones directamente sobre listas de `String`.
+  2. Reutilizar la infraestructura de combinadores puros sobre `ReadS` construida en `Motor.Reconocedor` para exponer la función pura `leerComando :: String -> Maybe Comando`.
+* **Decisión:** Se eligió la opción 2 en `Motor.Comandos`.
+* **Consecuencias:**
+  * *Ganamos:* Consistencia arquitectónica en todo el proyecto (mismo mecanismo de parsing para archivos de mundo y comandos de usuario), validación automática de que no quede texto residual sin consumir al final del comando (`ejecutarReconocedor`) y facilidad para realizar pruebas unitarias sin `IO`.
+  * *Perdimos:* Requiere cuidar la aplicación parcial de los combinadores `ReadS` (combinar funciones antes de aplicar la cadena de entrada) al construir alternativas con `<|>`.

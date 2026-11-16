@@ -136,3 +136,42 @@
 * **Consecuencias:**
   * *Ganamos:* Consistencia arquitectónica en todo el proyecto (mismo mecanismo de parsing para archivos de mundo y comandos de usuario), validación automática de que no quede texto residual sin consumir al final del comando (`ejecutarReconocedor`) y facilidad para realizar pruebas unitarias sin `IO`.
   * *Perdimos:* Requiere cuidar la aplicación parcial de los combinadores `ReadS` (combinar funciones antes de aplicar la cadena de entrada) al construir alternativas con `<|>`.
+
+---
+
+## D12. Reglas de visibilidad, iluminación y movimiento en la variante Oscuridad
+
+* **Contexto:** La variante 0 (*Oscuridad*) establece que en una sala con `OSCURA: si`, si el jugador no lleva un objeto con `LUZ: si`, el comando `mirar` no muestra objetos ni salidas y no se puede tomar ni examinar nada de la sala.
+* **Opciones:**
+  1. Prohibir cualquier intento de movimiento (`ir`) desde una sala oscura sin luz y considerar iluminada la sala también si un objeto luminoso está tirado en el suelo.
+  2. Exigir que el objeto con `LUZ: si` esté activamente en el `inventario` del jugador (`llevaObjetoConLuz`) para iluminar la sala, permitir `examinar` objetos que ya estén dentro del inventario, permitir `soltar` objetos (advirtiendo si la sala queda a oscuras) y permitir intentar moverse a ciegas (`ir <dirección>`), logrando cruzar solo si existe una salida válida en esa dirección y cumpliendo sus requisitos.
+* **Decisión:** Se eligió la opción 2 en `Motor.Nucleo` (funciones `tieneLuz`, `describirSalaActual`, `moverJugador`, `tomarObjeto`, `soltarObjeto` y `examinarObjeto`).
+* **Consecuencias:**
+  * *Ganamos:* Evita bloqueos irreversibles (*soft-locks*) si el jugador entra por accidente a una sala oscura sin linterna (puede retroceder por donde vino) y mantiene coherencia física al impedir tomar o examinar objetos del suelo sin visibilidad.
+  * *Perdimos:* Un jugador que suelte su única fuente de luz dentro de una sala oscura no podrá volver a verla para recogerla, por lo que debe salir; se mitigó emitiendo una advertencia explícita en `soltarObjeto`.
+
+---
+
+## D13. Persistencia del requisito en salidas bloqueadas tras cruzarlas
+
+* **Contexto:** Una salida declarada con `requiere <objeto>` solo puede cruzarse si el jugador lleva dicho objeto en su inventario.
+* **Opciones:**
+  1. Agregar un conjunto de salidas desbloqueadas (`Set (IdSala, Direccion)`) dentro de `Estado` para que, una vez cruzada, no vuelva a pedir el objeto.
+  2. Mantener la evaluación sin estado adicional en `moverJugador`: cada vez que se intenta cruzar una salida con `requisito = Just reqId`, se verifica `elem reqId (inventario est)` sin consumir el objeto ni alterar el mapa estático `Mundo`.
+* **Decisión:** Se eligió la opción 2 en `Motor.Nucleo` (`moverJugador`).
+* **Consecuencias:**
+  * *Ganamos:* El tipo `Estado` se mantiene minimalista (almacenando únicamente `mundoActual`, `ubicacion`, `inventario` y `objetosEnSalas`), evita duplicar información topológica del grafo del mundo y modela casos donde el requisito es una credencial o pase que se muestra en cada acceso (como `carnet` en `mundos/entrega.txt`).
+  * *Perdimos:* Si el jugador suelta el objeto requerido tras cruzar la puerta, no podrá volver a cruzarla en sentido contrario a menos que recupere el objeto.
+
+---
+
+## D14. Detección pura de victoria y separación de comandos de E/S en el núcleo
+
+* **Contexto:** Se exige que `Motor.Nucleo` sea 100% puro (sin `IO`) y exponga `ejecutar :: Comando -> Estado -> ([String], Estado)`, mientras que los comandos `Guardar`, `Cargar` y `Salir` requieren interacción con archivos o finalización del bucle en `Main.hs`. Asimismo, la victoria (`*** ¡Has ganado! ***`) puede producirse al entrar en una sala (`LlegarA`) o al recoger un objeto estando en la sala meta (`LlevarA`).
+* **Opciones:**
+  1. Añadir un campo booleano `terminado :: Bool` dentro de `Estado` y dejar que `Guardar`/`Cargar` lancen un error si llegan al núcleo.
+  2. Mantener `Estado` libre de banderas de control de bucle, exportar el predicado puro `haGanado :: Estado -> Bool` evaluado mediante `verificarVictoria` al final de `moverJugador` y `tomarObjeto`, y manejar todos los constructores de `Comando` de forma total en `ejecutar` (devolviendo mensajes neutros para `Guardar`/`Cargar` que serán interceptados por `Main.hs`).
+* **Decisión:** Se eligió la opción 2 en `Motor.Nucleo` (`ejecutar`, `haGanado` y `verificarVictoria`).
+* **Consecuencias:**
+  * *Ganamos:* Totalidad garantizada en el *pattern matching* de `ejecutar` (cero funciones parciales ni excepciones en tiempo de ejecución), serialización más limpia de `Estado` para `Motor.Persistencia` y verificación automática de victoria tanto si el jugador llega con el objeto como si entra primero a la sala meta y recoge allí el objeto.
+  * *Perdimos:* El bucle principal en `app/Main.hs` debe inspeccionar explícitamente `cmd == Salir` y `haGanado nuevoEstado` para detener la ejecución y manejar `Guardar`/`Cargar` antes o junto con `ejecutar`.

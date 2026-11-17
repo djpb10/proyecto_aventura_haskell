@@ -3,3 +3,4 @@
 .cabal-store
 dist-newstyle
 aventura
+*.sav

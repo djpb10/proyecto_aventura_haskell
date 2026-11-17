@@ -175,3 +175,66 @@
 * **Consecuencias:**
   * *Ganamos:* Totalidad garantizada en el *pattern matching* de `ejecutar` (cero funciones parciales ni excepciones en tiempo de ejecución), serialización más limpia de `Estado` para `Motor.Persistencia` y verificación automática de victoria tanto si el jugador llega con el objeto como si entra primero a la sala meta y recoge allí el objeto.
   * *Perdimos:* El bucle principal en `app/Main.hs` debe inspeccionar explícitamente `cmd == Salir` y `haGanado nuevoEstado` para detener la ejecución y manejar `Guardar`/`Cargar` antes o junto con `ejecutar`.
+
+ ## D15. Nombres de archivo en guardar y cargar
+
+* **Contexto:** `guardar` y `cargar` reciben un nombre de archivo. La primera versión lo leía con `identificador`, que solo admite minúsculas, dígitos y `_`, así que `guardar partida.txt` daba `Nothing`. Además `leerComando` pasaba toda la línea a minúsculas, y `guardar Partida` guardaba como `partida`. Lo detectamos probando en ghci
+* **Opciones:**
+  1. Dejar `identificador` y pedirle al jugador nombres de archivo sin punto y en minúsculas.
+  2. Leer el nombre con un reconocedor propio, `nombreArchivo` (cualquier cosa sin espacios), y probar `guardar` y `cargar` antes de pasar la línea a minúsculas
+* **Decisión:** Elegimos la opción 2 en `Motor.Comandos`. `leerComando` intenta primero `cmdGuardar <|> cmdCargar` sobre la línea recortada; si no calza, prueba el resto de comandos sobre la línea en minúsculas
+* **Consecuencias:**
+  * *Ganamos:* Se aceptan nombres como `p.sav` o `Partida.txt`, respetando mayúsculas
+  * *Perdimos:* El verbo de `guardar` y `cargar` ya no se normaliza, así que `GUARDAR x` no se reconoce. Tampoco se admiten nombres con espacios
+
+---
+
+## D16. Formato de las partidas guardadas
+
+* **Contexto:** `guardar` y `cargar` tienen que escribir y recuperar el estado, y el enunciado exige que, si el archivo no existe, está corrupto o es de otro mundo, el programa lo informe y siga
+* **Opciones:**
+  1. Guardar solo lo que cambia ubicación, inventario y objetos por sala en un formato propio
+  2. Guardar el `Estado` completo con `show` y recuperarlo con `reads`, que `Estado` ya deriva
+* **Decisión:** Elegimos la opción 2 en `Motor.Persistencia`. `cargarPartida` acepta el archivo solo si `reads` da una única lectura sin texto sobrante, y si el `mundoActual` guardado es igual (`==`) al del juego en curso. `guardarPartida` atrapa `IOException` con `try`
+* **Consecuencias:**
+  * *Ganamos:* No hay que escribir ningún formato a mano, y la comparación de mundos detecta una partida de otro mundo, o del mismo mundo si el archivo cambió después de guardar
+  * *Perdimos:* El archivo repite el mundo completo en cada partida. Si el archio de mundo cambia aunque sea una descripción, las partidas viejas se rechazan. Un archivo `.sav` es difícil de leer a ojo
+
+---
+
+## D17. Entrada redirigida y fin de la entrada
+
+* **Contexto:** El programa debe funcionar con `aventura mundo.txt < guion.txt` y terminar normalmente al acabarse la entrada, sin excepciones
+* **Opciones:**
+  1. Leer toda la entrada de una vez con `getContents` y procesar sus líneas
+  2. Leer una línea por vuelta con `getLine`, preguntando antes con `isEOF` si queda entrada
+* **Decisión:** Elegimos la opción 2 en `bucle` (`app/Main.hs`). Si `isEOF` da `True`, imprime un salto de línea y sale con código 0. El bucle es recursión: se llama con el estado nuevo. `Salir` y la victoria terminan con `exitSuccess`. `Guardar` y `Cargar` los maneja `Main` y no `ejecutar`, siguiendo D14
+* **Consecuencias:**
+  * *Ganamos:* Sin `isEOF`, `getLine` lanzaría una excepción al final del archivo redirigido. El indicador `> ` se muestra antes de cada lectura y la sesión funciona igual
+  * *Perdimos:* La victoria se detecta buscando el texto `*** ¡Has ganado! ***` entre los mensajes de `ejecutar`, en lugar de usar el predicado `haGanado` que exporta el núcleo. Funciona, pero depende del texto del mensaje
+
+---
+
+## D18. Codificación de texto
+
+* **Contexto:** Los archivos de mundo están en UTF-8 y tienen tildes. En Windows, `readFile` usa por defecto la codificación de la consola y las tildes salían como otros caracteres (`\9500\9553ltima`)
+* **Opciones:**
+  1. Dejar la codificación por defecto y pedir al usuario que configure su sistema
+  2. Fijar UTF-8 al arrancar `main` con `setLocaleEncoding utf8` y `hSetEncoding` sobre `stdin` y `stdout`
+* **Decisión:** Elegimos la opción 2 en `Main`
+* **Consecuencias:**
+  * *Ganamos:* La lectura y escritura de archivos y de consola es la misma en cualquier sistema
+  * *Perdimos:* Una consola de Windows que no esté en UTF-8 muestra las tildes raras aunque el programa escriba bien. Se resuelve configurando la consola, sin tocar el código
+
+---
+
+## D19. Mundo propio: cómo importa la oscuridad
+
+* **Contexto:** El enunciado pide que la variante importe para ganar en `mundos/mundo.txt`
+* **Opciones:**
+  1. Una sala oscura decorativa, que se pueda ignorar
+  2. Poner la llave que abre la salida bloqueada dentro de una sala oscura (`archivo`), de modo que sin la linterna no se pueda tomar
+* **Decisión:** Elegimos la opción 2. La llave está en `archivo` (oscura), la escalera requiere la llave, y la meta (`llevar informe a sala_servidores`) está después de la escalera, además de otra salida que requiere el carnet. Comprobamos que sin linterna `tomar llave_servidores` responde que está demasiado oscuro
+* **Consecuencias:**
+  * *Ganamos:* La linterna es obligatoria para ganar, y `guiones/mundo.txt` lo demuestra
+  * *Perdimos:* Si el jugador suelta la linterna en una sala oscura no puede recogerla, como dice D12. El mundo tiene salida, pero el jugador puede dejarse sin luz por su cuenta

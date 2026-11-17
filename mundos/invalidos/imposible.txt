@@ -1,0 +1,30 @@
+# Mundo inválido 3: requisitos, meta y alcanzabilidad
+# Errores esperados 5:
+# V4: la salida al este de la sala cuarto requiere llave_magica, que no existe
+# V8: META nombra una sala que no existe: boveda
+# V9: la sala sotano no es alcanzable desde INICIO
+# V10: el objeto tesoro es necesario pero no está en ninguna sala
+# V10: el objeto pase es necesario pero no está en ninguna sala
+
+MUNDO: Mundo sin salida
+INICIO: cuarto
+META: llevar tesoro a boveda
+---
+OBJETO: tesoro
+DESC: Un tesoro.
+---
+OBJETO: pase
+DESC: Un pase.
+---
+SALA: cuarto
+DESC: Un cuarto.
+SALIDA: norte -> pasillo requiere pase
+SALIDA: este -> pasillo requiere llave_magica
+---
+SALA: pasillo
+DESC: Un pasillo.
+SALIDA: sur -> cuarto
+---
+SALA: sotano
+DESC: Nadie llega aquí.
+SALIDA: arriba -> pasillo

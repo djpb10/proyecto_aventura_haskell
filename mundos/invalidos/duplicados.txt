@@ -1,0 +1,32 @@
+# Mundo inválido 2: duplicados y objetos sin definir
+# Errores esperados 4:
+# V2: la sala cuarto está definida más de una vez
+# V5: la sala pasillo tiene dos salidas al norte
+# V6: la sala pasillo contiene el objeto fantasma, que no está definido
+# V7: el objeto vela está colocado más de una vez
+
+MUNDO: Mundo con duplicados
+INICIO: cuarto
+META: llegar a pasillo
+---
+OBJETO: vela
+DESC: Una vela.
+LUZ: si
+---
+SALA: cuarto
+DESC: Un cuarto.
+SALIDA: norte -> pasillo
+OBJETO: vela
+---
+SALA: cuarto
+DESC: Otro cuarto con el mismo identificador.
+SALIDA: norte -> pasillo
+---
+SALA: pasillo
+DESC: Un pasillo.
+OSCURA: si
+SALIDA: sur -> cuarto
+SALIDA: norte -> cuarto
+SALIDA: norte -> pasillo
+OBJETO: vela
+OBJETO: fantasma

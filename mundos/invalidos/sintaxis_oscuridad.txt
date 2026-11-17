@@ -1,0 +1,20 @@
+# Mundo inválido 1: errores de sintaxis V1, con dos propios de oscuridad
+# Errores esperados 4:
+# línea 14: LUZ con un valor distinto de si (variante oscuridad)
+# línea 18: OSCURA: no, la variante solo admite "si" (variante oscuridad)
+# línea 19: SALIDA con dirección inexistente (noreste)
+# línea 20: línea sin la forma CLAVE: valor
+
+MUNDO: Cuarto roto
+INICIO: cuarto
+META: llegar a cuarto
+---
+OBJETO: vela
+DESC: Una vela.
+LUZ: tal_vez
+---
+SALA: cuarto
+DESC: Un cuarto.
+OSCURA: no
+SALIDA: noreste -> cuarto
+esto no tiene dos puntos

@@ -8,10 +8,15 @@ import Motor.Reconocedor (ejecutarReconocedor, identificador, espacios1, cadena,
 
 -- Interpreta una línea de texto escrita por el jugador y la traduce a un Comando.
 -- Es una función pura.
+-- guardar y cargar se prueban primero con la línea tal cual, para no perder
+-- las mayúsculas del nombre del archivo. El resto se pasa a minúsculas.
 leerComando :: String -> Maybe Comando
 leerComando linea =
-  let lineaLimpia = map toLower (trim linea)
-  in ejecutarReconocedor reconocerComando lineaLimpia
+  case ejecutarReconocedor (cmdGuardar <|> cmdCargar) limpia of
+    Just c  -> Just c
+    Nothing -> ejecutarReconocedor reconocerComando (map toLower limpia)
+  where
+    limpia = trim linea
 
 
 trim :: String -> String
@@ -19,7 +24,7 @@ trim = dropWhile isSpace . reverse . dropWhile isSpace . reverse
 
 
 reconocerComando :: ReadS Comando
-reconocerComando = 
+reconocerComando =
       cmdIr
   <|> cmdDireccionDirecta
   <|> cmdMirar
@@ -27,10 +32,24 @@ reconocerComando =
   <|> cmdSoltar
   <|> cmdExaminar
   <|> cmdInventario
-  <|> cmdGuardar
-  <|> cmdCargar
   <|> cmdAyuda
   <|> cmdSalir
+
+-- Quita un artículo (el, la, los, las) al principio, si lo hay.
+consumirArticulo :: String -> String
+consumirArticulo str =
+  case dropWhile isSpace str of
+    ('e':'l':' ':rest)     -> dropWhile isSpace rest
+    ('l':'a':' ':rest)     -> dropWhile isSpace rest
+    ('l':'o':'s':' ':rest) -> dropWhile isSpace rest
+    ('l':'a':'s':' ':rest) -> dropWhile isSpace rest
+    _                      -> str
+
+-- Un nombre de archivo: cualquier cosa sin espacios.
+nombreArchivo :: ReadS String
+nombreArchivo s =
+  let (tok, resto) = span (not . isSpace) s
+  in if null tok then [] else [(tok, resto)]
 
 --- ir <dirección>
 cmdIr :: ReadS Comando
@@ -60,6 +79,7 @@ cmdDireccionDirecta s =
       [ (Oeste, r) | (_, r) <- cadena "oeste" str ] ++
       [ (Arriba, r)| (_, r) <- cadena "arriba" str ] ++
       [ (Abajo, r) | (_, r) <- cadena "abajo" str ]
+
 --  mirar
 cmdMirar :: ReadS Comando
 cmdMirar s = [ (Mirar, r) | (_, r) <- (cadena "mirar" <|> cadena "m") s ]
@@ -67,44 +87,28 @@ cmdMirar s = [ (Mirar, r) | (_, r) <- (cadena "mirar" <|> cadena "m") s ]
 --  tomar <objeto>
 cmdTomar :: ReadS Comando
 cmdTomar s =
-  [ (Tomar (IdObjeto obj), r5)
+  [ (Tomar (IdObjeto obj), r3)
   | (_, r1)    <- (cadena "tomar" <|> cadena "coger") s
   , (_, r2)    <- espacios1 r1
-  , let r2' = consumirArticulo r2
-  , (obj, r5)  <- identificador r2'
+  , (obj, r3)  <- identificador (consumirArticulo r2)
   ]
-  where
-    consumirArticulo str =
-      case dropWhile isSpace str of
-        ('e':'l':' ':rest)     -> dropWhile isSpace rest
-        ('l':'a':' ':rest)     -> dropWhile isSpace rest
-        ('l':'o':'s':' ':rest) -> dropWhile isSpace rest
-        ('l':'a':'s':' ':rest) -> dropWhile isSpace rest
-        _                      -> str
 
 --  soltar <objeto>
 cmdSoltar :: ReadS Comando
 cmdSoltar s =
-  [ (Soltar (IdObjeto obj), r4)
+  [ (Soltar (IdObjeto obj), r3)
   | (_, r1)    <- (cadena "soltar" <|> cadena "dejar") s
   , (_, r2)    <- espacios1 r1
-  , let r2' = consumirArticulo r2
-  , (obj, r4)  <- identificador r2'
+  , (obj, r3)  <- identificador (consumirArticulo r2)
   ]
-  where
-    consumirArticulo str =
-      case dropWhile isSpace str of
-        ('e':'l':' ':rest)  -> dropWhile isSpace rest
-        ('l':'a':' ':rest)  -> dropWhile isSpace rest
-        _                   -> str
 
 --  examinar <objeto>
 cmdExaminar :: ReadS Comando
 cmdExaminar s =
-  [ (Examinar (IdObjeto obj), r4)
+  [ (Examinar (IdObjeto obj), r3)
   | (_, r1)    <- (cadena "examinar" <|> cadena "x") s
   , (_, r2)    <- espacios1 r1
-  , (obj, r4)  <- identificador r2
+  , (obj, r3)  <- identificador (consumirArticulo r2)
   ]
 
 --  inventario
@@ -114,19 +118,19 @@ cmdInventario s = [ (Inventario, r) | (_, r) <- (cadena "inventario" <|> cadena 
 --  guardar <archivo>
 cmdGuardar :: ReadS Comando
 cmdGuardar s =
-  [ (Guardar arch, r3)
-  | (_, r1)    <- cadena "guardar" s
-  , (_, r2)    <- espacios1 r1
-  , (arch, r3) <- identificador r2
+  [ (Guardar arch, r2)
+  | (_, r0)    <- cadena "guardar" s
+  , (_, r1)    <- espacios1 r0
+  , (arch, r2) <- nombreArchivo r1
   ]
 
 --  cargar <archivo>
 cmdCargar :: ReadS Comando
 cmdCargar s =
-  [ (Cargar arch, r3)
-  | (_, r1)    <- (cadena "cargar" <|> cadena "recuperar") s
-  , (_, r2)    <- espacios1 r1
-  , (arch, r3) <- identificador r2
+  [ (Cargar arch, r2)
+  | (_, r0)    <- (cadena "cargar" <|> cadena "recuperar") s
+  , (_, r1)    <- espacios1 r0
+  , (arch, r2) <- nombreArchivo r1
   ]
 
 --  ayuda

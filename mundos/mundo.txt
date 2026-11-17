@@ -1,0 +1,77 @@
+# Mundo propio del proyecto 1 (variante 0: oscuridad)
+# Hay que llevar el informe a la sala de servidores. Sin la linterna no se puede tomar la llave del archivo, 
+# y sin la llave no se sube la escalera.
+
+MUNDO: Apagón en la facultad
+INICIO: entrada
+META: llevar informe a sala_servidores
+---
+OBJETO: linterna
+DESC: Una linterna pesada. Todavía tiene pilas.
+LUZ: si
+---
+OBJETO: carnet
+DESC: Tu carnet estudiantil. Sin él no te dejan entrar a servidores.
+---
+OBJETO: informe
+DESC: El informe impreso que hay que entregar a los servidores.
+---
+OBJETO: llave_servidores
+DESC: Una llave con una etiqueta que dice «Servidores».
+---
+OBJETO: bateria
+DESC: Una batería vieja. No sirve para nada, pero pesa.
+---
+OBJETO: taza
+DESC: Una taza de café frío que alguien dejó en el hall.
+---
+SALA: entrada
+DESC: La entrada de la facultad. Hay un apagón y solo entra luz de la calle.
+SALIDA: norte -> hall
+---
+SALA: hall
+DESC: El hall principal. Las luces de emergencia apenas se ven.
+SALIDA: sur -> entrada
+SALIDA: este -> conserjeria
+SALIDA: oeste -> cafeteria
+SALIDA: norte -> pasillo_oscuro
+OBJETO: taza
+---
+SALA: conserjeria
+DESC: La conserjería. Hay una repisa con herramientas.
+SALIDA: oeste -> hall
+OBJETO: linterna
+---
+SALA: cafeteria
+DESC: La cafetería, vacía y en silencio.
+SALIDA: este -> hall
+OBJETO: carnet
+OBJETO: bateria
+---
+SALA: pasillo_oscuro
+DESC: Un pasillo sin ventanas. Al fondo hay una escalera hacia arriba.
+OSCURA: si
+SALIDA: sur -> hall
+SALIDA: este -> oficina
+SALIDA: oeste -> archivo
+SALIDA: arriba -> escalera requiere llave_servidores
+---
+SALA: oficina
+DESC: Una oficina con un escritorio lleno de papeles. El informe está encima.
+SALIDA: oeste -> pasillo_oscuro
+OBJETO: informe
+---
+SALA: archivo
+DESC: El archivo. Estantes hasta el techo y cajas por todos lados.
+OSCURA: si
+SALIDA: este -> pasillo_oscuro
+OBJETO: llave_servidores
+---
+SALA: escalera
+DESC: Una escalera de servicio. Al norte hay una puerta con lector de carnet.
+SALIDA: abajo -> pasillo_oscuro
+SALIDA: norte -> sala_servidores requiere carnet
+---
+SALA: sala_servidores
+DESC: La sala de servidores. Por fin hay luz y se oyen los ventiladores.
+SALIDA: sur -> escalera

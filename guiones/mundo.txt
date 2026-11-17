@@ -1,0 +1,16 @@
+norte
+este
+tomar linterna
+oeste
+oeste
+tomar carnet
+este
+norte
+oeste
+tomar llave_servidores
+este
+este
+tomar informe
+oeste
+arriba
+norte

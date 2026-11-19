@@ -32,7 +32,8 @@ test-suite aventura-test
     type:             exitcode-stdio-1.0
     main-is:          Spec.hs
     hs-source-dirs:   test
-    other-modules:    Common
+    other-modules:    ComandosSpec
+                      Common
                       MundoSpec
                       ReconocedorSpec
     build-depends:

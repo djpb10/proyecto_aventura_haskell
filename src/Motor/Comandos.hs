@@ -35,7 +35,8 @@ reconocerComando =
   <|> cmdAyuda
   <|> cmdSalir
 
--- Quita un artículo (el, la, los, las) al principio, si lo hay.
+-- Quita un artículo (el, la, los, las) al principio, si lo hay. Si la cadena
+-- es solo un artículo, la deja vacía para que no se tome como identificador.
 consumirArticulo :: String -> String
 consumirArticulo str =
   case dropWhile isSpace str of
@@ -43,6 +44,10 @@ consumirArticulo str =
     ('l':'a':' ':rest)     -> dropWhile isSpace rest
     ('l':'o':'s':' ':rest) -> dropWhile isSpace rest
     ('l':'a':'s':' ':rest) -> dropWhile isSpace rest
+    "el"                   -> ""
+    "la"                   -> ""
+    "los"                  -> ""
+    "las"                  -> ""
     _                      -> str
 
 -- Un nombre de archivo: cualquier cosa sin espacios.

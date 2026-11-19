@@ -6,6 +6,7 @@ import Test.HUnit (Counts (..), Test (..), runTestTT)
 import ComandosSpec (pruebasComandos)
 import MundoSpec (pruebasMundo)
 import NucleoSpec (pruebasNucleo)
+import PersistenciaSpec (pruebasPersistencia)
 import ReconocedorSpec (pruebasReconocedor)
 
 -- Punto de entrada de la suite: fija la codificación de los archivos, reúne
@@ -16,7 +17,13 @@ main = do
   setLocaleEncoding utf8
   counts <-
     runTestTT
-      (TestList [pruebasReconocedor, pruebasMundo, pruebasComandos, pruebasNucleo])
+      (TestList
+        [ pruebasReconocedor
+        , pruebasMundo
+        , pruebasComandos
+        , pruebasNucleo
+        , pruebasPersistencia
+        ])
   if errors counts + failures counts == 0
     then exitSuccess
     else exitFailure
